@@ -144,15 +144,18 @@ def set_user_setuid(username):
 
 def set_user_sudo(username):
     """return a preexec_fn for setting the user (assuming sudo is used for setting the user)"""
-    return
+    print("getting preexec for sudo")
     user = pwd.getpwnam(username)
     home = user.pw_dir
 
     def preexec():
+        print("set pgrp")
         # don't forward signals
         os.setpgrp()
+        print("set cwd")
         # start in the user's home dir
         os.chdir(home)
+        print("preexec OK")
 
     return preexec
 
@@ -190,9 +193,9 @@ class LocalProcessSpawner(Spawner):
     )
     def _set_user_changed(self, name, old, new):
         if new == 'sudo':
-            self.make_preexec = set_user_sudo
+            self.make_preexec_fn = set_user_sudo
         elif new == 'setuid':
-            self.make_preexec = set_user_setuid
+            self.make_preexec_fn = set_user_setuid
         else:
             raise ValueError("This should be impossible")
     
