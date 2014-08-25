@@ -144,6 +144,7 @@ def set_user_setuid(username):
 
 def set_user_sudo(username):
     """return a preexec_fn for setting the user (assuming sudo is used for setting the user)"""
+    return
     user = pwd.getpwnam(username)
     home = user.pw_dir
 
