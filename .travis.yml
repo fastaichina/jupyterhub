@@ -12,4 +12,4 @@ before_install:
 install:
     - time pip install .
 script:
-    - py.test jupyterhub
+    - cd /tmp; py.test jupyterhub
