@@ -70,14 +70,17 @@ class BaseHandler(RequestHandler):
         """get_current_user from Authorization header token"""
         auth_header = self.request.headers.get('Authorization', '')
         match = auth_header_pat.match(auth_header)
+        self.log.debug("Checking auth header: %r", auth_header)
         if not match:
             return None
         token = match.group(1)
         orm_token = orm.APIToken.find(self.db, token)
+        self.log.debug("Found token: %r", orm_token)
         if orm_token is None:
             return None
         else:
             user = orm_token.user
+            self.log.debug("Found user for token: %r", user)
             user.last_activity = datetime.utcnow()
             return user
 
@@ -151,7 +154,7 @@ class BaseHandler(RequestHandler):
             result = yield auth.authenticate(self, data)
             raise gen.Return(result)
         else:
-            self.log.error("No authentication function, login is impossible!")
+            self.log.error("No authenticator, login is impossible!")
 
 
     #---------------------------------------------------------------

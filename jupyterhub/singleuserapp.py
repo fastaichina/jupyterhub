@@ -37,6 +37,7 @@ def verify_token(self, token):
     
     hub_api_url = self.settings['hub_api_url']
     hub_api_key = self.settings['hub_api_key']
+    self.log.info("Using API token %s to verify cookie %s", hub_api_key, token)
     r = requests.get(url_path_join(
         hub_api_url, "authorizations", token,
     ),

@@ -82,6 +82,7 @@ class Spawner(LoggingConfigurable):
     
     def __init__(self, **kwargs):
         super(Spawner, self).__init__(**kwargs)
+        self.log.debug("user state: %r", self.user.state)
         if self.user.state:
             self.load_state(self.user.state)
     
@@ -338,6 +339,8 @@ class LocalProcessSpawner(Spawner):
         cmd.extend(self.get_args())
         
         self.log.info("Spawning %r", cmd)
+        import json
+        self.log.debug("with env: %s", json.dumps(env, indent=1))
         self.proc = Popen(cmd, env=env,
             preexec_fn=self.make_preexec_fn(self.user.name),
         )
