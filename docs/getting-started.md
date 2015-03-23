@@ -14,18 +14,22 @@ See [the readme](../README.md) for help installing JupyterHub.
 Let's start by describing what happens when you type `sudo jupyterhub`
 after installing it, without any configuration.
 
+**NOTE** The default is to run without SSL encryption.
+You should not run JupyterHub without HTTPS if you can help it.
+See [below](#Security) for how to configure JupyterHub to use SSL.
+
 
 ### Authentication
 
 The default Authenticator that ships with JupyterHub
 authenticates users with their system name and password (via [PAM][]).
-Any user on the system with a password will be allowed to start a notebook server.
+Any user on the system with a password will be allowed to start a single-user notebook server.
 
 
 ### Spawning servers
 
 The default Spawner starts servers locally as each user,
-one for each server. These servers listen on localhost,
+one for each user. These servers listen on localhost,
 and start in the given user's home directory.
 
 
@@ -38,9 +42,9 @@ JupterHub consists of three main categories of processes:
 - Spawners
 
 The Proxy is the public face of the service.
-Users access the server via the proxy.
-By default, this is listening on all public interfaces on port 8000.
-You can access the hub at:
+Users access the server via the proxy,
+which listens on all public interfaces on port 8000.
+You can access JupyterHub at:
 
     http://localhost:8000
 
@@ -50,8 +54,7 @@ The other services, Hub and Spawners, all communicate with each other on localho
 If you are going to separate these processes across machines or containers,
 you may need to tell them to listen on addresses other than localhost.
 
-**NOTE** this server is running without SSL encryption.
-You should not run JupyterHub without HTTPS if you can help it.
+See [below](#Security) for how to configure JupyterHub to use SSL.
 
 
 ### Files
@@ -60,11 +63,14 @@ Starting JupyterHub will write two files to disk in the current working director
 
 - `jupyterhub.sqlite` is the sqlite database containing all of the state of the Hub.
   This file allows the Hub to remember what users are running and where,
-  as well as other information enabling you to 
-  You can change the location of this file with `--db=/path/to/somedb.sqlite`.
+  as well as other information enabling you to restart the Hub
+  without restarting the proxy or single-user servers.
 - `jupyterhub_cookie_secret` is the encryption key used for securing cookies.
   This file needs to persist in order for restarting the Hub server to avoid invalidating cookies.
   Conversely, deleting this file and restarting the server effectively invalidates all login cookies.
+  The cookie secret file is discussed [below](#Security).
+
+The location of these files can be specified via configuration, discussed below.
 
 
 ## How to configure JupyterHub
@@ -77,6 +83,8 @@ JupyterHub is configured in two ways:
   You can create an empty config file with `jupyterhub --generate-config`
   to see all the configurable values.
   You can load a specific config file with `jupyterhub -f /path/to/jupyterhub_config.py`.
+  (see also: [general docs](http://ipython.org/ipython-doc/dev/development/config.html)
+  on the config system Jupyter uses)
 
 
 ## Networking
@@ -87,11 +95,12 @@ When it starts, JupyterHub creates two processes:
 - the Hub itself
 
 The proxy is the public-facing part of the application.
-The default public IP is `''`, which means all interfaces on the machine.
+The default public IP is `''` (equivalent to `'0.0.0.0'`),
+which means all interfaces on the machine.
 The default port is 8000.
 If you want to specify where the Hub application as a whole can be found,
 modify these two values.
-If you want to listen on a particular IP,
+For example, if you want to listen on a particular IP,
 rather than all interfaces,
 and you want to use https on port 443,
 you can do this at the command-line:
@@ -106,7 +115,8 @@ c.JupyterHub.port = 443
 ```
 
 The Hub service talks to the proxy via a REST API on a separately configurable interface.
-By default, this is only on localhost. If you want to run the proxy separate from the Hub,
+By default, this is only on localhost on port 8001.
+If you want to run the proxy separate from the Hub,
 you may need to configure this ip and port with:
 
 ```python
@@ -115,7 +125,7 @@ c.JupyterHub.proxy_api_ip = '10.0.1.4'
 c.JupyterHub.proxy_api_port = 5432
 ```
 
-The Hub service also listens only on localhost by default.
+The Hub service also listens only on localhost by default, on port 8081.
 The Hub needs needs to be accessible from both the proxy and all
 Spawners. When spawning local servers, localhost is fine,
 but if *either* the proxy or (more likely) the Spawners will be remote
@@ -143,7 +153,7 @@ There are two other aspects of JupyterHub network security.
 The Hub authenticates its requests to the proxy via an environment variable,
 `CONFIGPROXY_AUTH_TOKEN`. If you want to be able to start or restart the proxy
 or Hub independently of each other (not always necessary),
-you must set this environment variable before starting the server:
+you must set this environment variable for both the hub and proxy:
 
 ```bash
 export CONFIGPROXY_AUTH_TOKEN=`openssl rand -hex 32`
@@ -165,7 +175,7 @@ If the cookie secret file doesn't exist when the Hub starts,
 a new cookie secret is generated and stored in the file.
 
 If you would like to avoid the need for files,
-the value can be loaded from the `JPY_COOKIE_SECRET` env variable:
+the value can be loaded in the Hub process from the `JPY_COOKIE_SECRET` env variable:
 
 ```bash
 export JPY_COOKIE_SECRET=`openssl rand -hex 1024`
@@ -197,7 +207,16 @@ If `JupyterHub.admin_access` is True (not default),
 then admin users have permission to log in *as other users* on their respective machines,
 for debugging. **You should make sure your users know if admin_access is enabled.**
 
-### adding and removing users
+### Adding and removing users
+
+Users can be added and removed to the Hub via the admin panel or REST API.
+These users will be added to the whitelist and database.
+Restarting the Hub will not require manually updating the whitelist in your config file,
+as the users will be loaded from the database.
+This means that after starting the Hub once,
+it is not sufficient to remove users from the whitelist in your config file.
+You must also remove them from the database, either by discarding the database file,
+or via the admin UI.
 
 The default PAMAuthenticator is one case of a special kind of authenticator,
 called a LocalAuthenticator,
@@ -246,26 +265,22 @@ IPython also supports loading system-wide config files from `/etc/ipython/`,
 which is the place to put configuration that you want to affect all of your users.
 
 
-- setting working directory
-- setting default page
-- /etc/ipython
-- custom Spawner
+## External services
 
-## external services
+JupyterHub has a REST API that can be used to run external services.
+More detail on this API will be added in the future.
 
-JupyterHub has a REST API that can be used
-
-### example: separate notebook-dir from landing url
+### Example: separate notebook-dir from landing url
 
 
 An example case:
 
 You are hosting JupyterHub on a single cloud server,
 using https on the standard https port, 443.
-You want to use GitHub OAuth for login,
+You want to use [GitHub OAuth][oauthenticator] for login,
 but need the users to exist locally on the server.
-You want users' notebooks to be served from `~/notebooks`,
-and you also want the landing page to be `~/notebooks/Welcome.ipynb`,
+You want users' notebooks to be served from `~/assignments`,
+and you also want the landing page to be `~/assignments/Welcome.ipynb`,
 instead of the directory listing page that is IPython's default.
 
 Let's start out with `jupyterhub_config.py`:
@@ -291,6 +306,7 @@ c.JupyterHub.ssl_cert = pjoin(ssl_dir, 'ssl.cert')
 # in /var/run/jupyterhub
 c.JupyterHub.cookie_secret_file = pjoin(runtime_dir, 'cookie_secret')
 c.JupyterHub.db_file = pjoin(runtime_dir, 'jupyterhub.sqlite')
+# or `--db=/path/to/jupyterhub.sqlite` on the command-line
 
 # use GitHub OAuthenticator for local users
 
@@ -311,15 +327,25 @@ c.Spawner.notebook_dir = '~/assignments'
 c.Spawner.args = ['--NotebookApp.default_url=/notebooks/Welcome.ipynb']
 ```
 
-Using the GitHub Authenticator requires a few env variables,
+Using the GitHub Authenticator [requires a few additional env variables][oauth-setup],
 which we will need to set when we launch the server:
 
 ```bash
 export GITHUB_CLIENT_ID=github_id
 export GITHUB_CLIENT_SECRET=github_secret
 export OAUTH_CALLBACK_URL=https://example.com/hub/oauth_callback
+export CONFIGPROXY_AUTH_TOKEN=super-secret
 jupyterhub -f /path/to/aboveconfig.py
 ```
 
+# Further reading
 
+- TODO: troubleshooting
+- [Custom Authenticators](authenticators.md)
+- [Custom Spawners](spawners.md)
+
+
+[oauth-setup]: https://github.com/jupyter/oauthenticator#setup
+[oauthenticator]: https://github.com/jupyter/oauthenticator
 [PAM]: http://en.wikipedia.org/wiki/Pluggable_authentication_module
+
