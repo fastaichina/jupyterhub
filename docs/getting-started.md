@@ -186,7 +186,7 @@ After starting the server, you can add and remove users in the whitelist via the
 which brings us to...
 
 ```python
-c.JupyterHub.admin_users = {'mal', 'zoe'}
+c.Authenticator.admin_users = {'mal', 'zoe'}
 ```
 
 Any users in the admin list are automatically added to the whitelist, if they are not already present.
@@ -301,7 +301,7 @@ c.LocalAuthenticator.create_system_users = True
 
 # specify users and admin
 c.Authenticator.whitelist = {'rgbkrk', 'minrk', 'jhamrick'}
-c.JupyterHub.admin_users = {'jhamrick', 'rgbkrk'}
+c.Authenticator.admin_users = {'jhamrick', 'rgbkrk'}
 
 # start users in ~/assignments,
 # with Welcome.ipynb as the default landing page
