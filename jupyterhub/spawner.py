@@ -160,6 +160,7 @@ class Spawner(LoggingConfigurable):
             '--base-url=%s' % self.user.server.base_url,
             '--hub-prefix=%s' % self.hub.server.base_url,
             '--hub-api-url=%s' % self.hub.api_url,
+            "--NotebookApp.tornado_settings={'static_url_prefix': '/static/'}",
             ]
         if self.ip:
             args.append('--ip=%s' % self.ip)

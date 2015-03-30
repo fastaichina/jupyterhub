@@ -223,6 +223,19 @@ class JupyterHub(Application):
         help="The base URL of the entire application"
     )
     
+    static_files_ip = Unicode('localhost', config=True,
+        help="The ip of the static-files service.",
+    )
+    static_files_port = Integer(8010, config=True,
+        help="The port of the static-files service.",
+    )
+    static_files_path = Unicode('', config=True,
+        help="The local files path to serve static files",
+    )
+    serve_static_files = Bool(True, config=True,
+        help="Whether to serve single-user static files via a standalone service.",
+    )
+    
     jinja_environment_options = Dict(config=True,
         help="Supply extra arguments that will be passed to Jinja environment."
     )
@@ -678,7 +691,31 @@ class JupyterHub(Application):
 
         self.log.debug("Loaded users: %s", '\n'.join(user_summaries))
         db.commit()
-
+    
+    @gen.coroutine
+    def start_static_files(self):
+        if not self.serve_static_files:
+            return
+        
+        cmd = [sys.executable, '-m', 'jupyterhub.staticfiles',
+            '--ip=%s' % self.static_files_ip,
+            '--port=%i' % self.static_files_port,
+        ]
+        if self.static_files_path:
+            cmd.append('--path=%s' % self.static_files_path)
+        
+        static_server = Popen(cmd)
+        yield self.proxy.api_request(url_path_join(self.base_url, 'static'),
+            method='POST',
+            body=dict(
+                target='http://{ip}:{port}'.format(
+                    ip=self.static_files_ip,
+                    port=self.static_files_port,
+                )
+            ),
+        )
+        
+    
     def init_proxy(self):
         """Load the Proxy config into the database"""
         self.proxy = self.db.query(orm.Proxy).first()
@@ -977,6 +1014,8 @@ class JupyterHub(Application):
             self.log.critical("Failed to start proxy", exc_info=True)
             self.exit(1)
             return
+        
+        yield self.start_static_files()
         
         loop.add_callback(self.proxy.add_all_users)
         
