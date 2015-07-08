@@ -8,6 +8,7 @@ import atexit
 import binascii
 import logging
 import os
+import re
 import signal
 import socket
 import sys
@@ -197,6 +198,28 @@ class JupyterHub(Application):
     
     data_files_path = Unicode(DATA_FILES_PATH, config=True,
         help="The location of jupyterhub data files (e.g. /usr/local/share/jupyter/hub)"
+    )
+    
+    allow_origin = Unicode('', config=True,
+        help="""Set the Access-Control-Allow-Origin header
+        
+        Use '*' to allow any origin to access your server.
+        
+        Takes precedence over allow_origin_pat.
+        """
+    )
+    
+    allow_origin_pat = Unicode('', config=True,
+        help="""Use a regular expression for the Access-Control-Allow-Origin header
+        
+        Requests from an origin matching the expression will get replies with:
+        
+            Access-Control-Allow-Origin: origin
+        
+        where `origin` is the origin of the request.
+        
+        Ignored if allow_origin is set.
+        """
     )
 
     template_paths = List(
@@ -820,6 +843,8 @@ class JupyterHub(Application):
             db=self.db,
             proxy=self.proxy,
             hub=self.hub,
+            allow_origin=self.allow_origin,
+            allow_origin_pat=None,
             admin_users=self.authenticator.admin_users,
             admin_access=self.admin_access,
             authenticator=self.authenticator,
@@ -836,6 +861,8 @@ class JupyterHub(Application):
             jinja2_env=jinja_env,
             version_hash=version_hash,
         )
+        if self.allow_origin_pat:
+            settings['allow_origin_pat'] = re.compile(self.allow_origin_pat, re.I)
         # allow configured settings to have priority
         settings.update(self.tornado_settings)
         self.tornado_settings = settings
@@ -1041,7 +1068,6 @@ class JupyterHub(Application):
         loop = IOLoop()
         loop.make_current()
         loop.run_sync(self.cleanup)
-        
     
     def stop(self):
         if not self.io_loop:
