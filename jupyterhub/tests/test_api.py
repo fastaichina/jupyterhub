@@ -1,6 +1,7 @@
 """Tests for the REST API"""
 
 import json
+import re
 import time
 from datetime import timedelta
 
@@ -95,6 +96,42 @@ def test_auth_api(app):
         headers={'Authorization': 'token: %s' % user.cookie_id},
     )
     assert r.status_code == 403
+
+
+def test_origin_check(app):
+    settings = app.tornado_application.settings
+    r = api_request(app, 'users',
+        headers={'Origin': 'null'},
+    )
+    assert r.status_code == 404
+    settings['allow_origin'] = '*'
+    r = api_request(app, 'users',
+        headers={'Origin': 'null'},
+    )
+    assert r.status_code == 200
+    settings['allow_origin'] = 'foo'
+    r = api_request(app, 'users',
+        headers={'Origin': 'null'},
+    )
+    assert r.status_code == 404
+    settings['allow_origin'] = 'null'
+    r = api_request(app, 'users',
+        headers={'Origin': 'null'},
+    )
+    assert r.status_code == 200
+    settings['allow_origin'] = ''
+    settings['allow_origin_pat'] = re.compile('wrong', re.I)
+    r = api_request(app, 'users',
+        headers={'Origin': 'null'},
+    )
+    assert r.status_code == 404
+    settings['allow_origin_pat'] = re.compile('.*', re.I)
+    r = api_request(app, 'users',
+        headers={'Origin': 'null'},
+    )
+    assert r.status_code == 200
+    settings['allow_origin_pat'] = None
+
 
 def test_get_users(app):
     db = app.db
