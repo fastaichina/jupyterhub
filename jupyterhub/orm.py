@@ -303,7 +303,7 @@ class User(Base):
     @property
     def escaped_name(self):
         """My name, escaped for use in URLs, cookies, etc."""
-        return quote(self.name, safe='@')
+        return quote(self.name)
     
     @property
     def running(self):
@@ -344,6 +344,7 @@ class User(Base):
             cookie_name='%s-%s' % (hub.server.cookie_name, quote(self.name, safe='')),
             base_url=url_path_join(base_url, 'user', self.escaped_name),
         )
+        print(self.escaped_name)
         db.add(self.server)
         db.commit()
         
