@@ -35,6 +35,7 @@ from tornado import gen, web
 from traitlets import (
     Unicode, Integer, Dict, TraitError, List, Bool, Any,
     Type, Set, Instance, Bytes, Float,
+    default, observe,
 )
 from traitlets.config import Application, catch_config_error
 
@@ -279,10 +280,14 @@ class JupyterHub(Application):
     hub_prefix = URLPrefix('/hub/', config=True,
         help="The prefix for the hub server. Must not be '/'"
     )
+    @default('hub_prefix')
     def _hub_prefix_default(self):
         return url_path_join(self.base_url, '/hub/')
     
-    def _hub_prefix_changed(self, name, old, new):
+    @observe('hub_prefix')
+    def _hub_prefix_changed(self, change):
+        print(change)
+        new = change['new']
         if new == '/':
             raise TraitError("'/' is not a valid hub prefix")
         if not new.startswith(self.base_url):
@@ -331,10 +336,11 @@ class JupyterHub(Application):
     db_url = Unicode('sqlite:///jupyterhub.sqlite', config=True,
         help="url for the database. e.g. `sqlite:///jupyterhub.sqlite`"
     )
-    def _db_url_changed(self, name, old, new):
-        if '://' not in new:
+    @observe('db_url')
+    def _db_url_changed(self, change):
+        if '://' not in change['new']:
             # assume sqlite, if given as a plain filename
-            self.db_url = 'sqlite:///%s' % new
+            self.db_url = 'sqlite:///%s' % change['new']
 
     db_kwargs = Dict(config=True,
         help="""Include any kwargs to pass to the database connection.
@@ -351,6 +357,7 @@ class JupyterHub(Application):
     session_factory = Any()
     
     users = Instance(UserDict)
+    @default('users')
     def _users_default(self):
         assert self.tornado_settings
         return UserDict(db_factory=lambda : self.db, settings=self.tornado_settings)
@@ -400,13 +407,16 @@ class JupyterHub(Application):
     proxy_process = None
     io_loop = None
     
+    @default('log_level')
     def _log_level_default(self):
         return logging.INFO
     
+    @default('log_datefmt')
     def _log_datefmt_default(self):
         """Exclude date from default date format"""
         return "%Y-%m-%d %H:%M:%S"
-
+    
+    @default('log_format')
     def _log_format_default(self):
         """override default log format to include time"""
         return "%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d %(name)s %(module)s:%(lineno)d]%(end_color)s %(message)s"

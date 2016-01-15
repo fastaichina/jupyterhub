@@ -15,7 +15,7 @@ from tornado import gen
 import pamela
 
 from traitlets.config import LoggingConfigurable
-from traitlets import Bool, Set, Unicode, Dict, Any
+from traitlets import Bool, Set, Unicode, Dict, Any, default, observe
 
 from .handlers.login import LoginHandler
 from .utils import url_path_join
@@ -60,10 +60,11 @@ class Authenticator(LoggingConfigurable):
         If not defined: allow any username.
         """
     )
-    def _username_pattern_changed(self, name, old, new):
-        if not new:
+    @observe('username_pattern')
+    def _username_pattern_changed(self, change):
+        if not change['new']:
             self.username_regex = None
-        self.username_regex = re.compile(new)
+        self.username_regex = re.compile(change['new'])
     
     username_regex = Any()
     
@@ -228,7 +229,8 @@ class LocalAuthenticator(Authenticator):
         when the user 'river' is created.
         """
     )
-    def _add_user_cmd_default(self):
+    @default('add_user_cmd')
+    def _add_user_cmd(self):
         if sys.platform == 'darwin':
             raise ValueError("I don't know how to create users on OS X")
         elif which('pw'):
@@ -242,10 +244,10 @@ class LocalAuthenticator(Authenticator):
         config=True,
         help="Automatically whitelist anyone in this group.",
     )
-
-    def _group_whitelist_changed(self, name, old, new):
+    @observe('group_whitelist')
+    def _group_whitelist_changed(self, change):
         if self.whitelist:
-            self.log.warn(
+            self.log.warning(
                 "Ignoring username whitelist because group whitelist supplied!"
             )
 

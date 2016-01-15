@@ -12,7 +12,7 @@ from sqlalchemy import inspect
 from .utils import url_path_join
 
 from . import orm
-from traitlets import HasTraits, Any, Dict
+from traitlets import HasTraits, Any, Dict, default, observe
 from .spawner import LocalProcessSpawner
 
 
@@ -75,16 +75,18 @@ class User(HasTraits):
     settings = Dict()
     
     db = Any(allow_none=True)
-    def _db_default(self):
+    @default('db')
+    def _db(self):
         if self.orm_user:
             return inspect(self.orm_user).session
     
-    def _db_changed(self, name, old, new):
+    @observe('db')
+    def _db_changed(self, change):
         """Changing db session reacquires ORM User object"""
         # db session changed, re-get orm User
         if self.orm_user:
             id = self.orm_user.id
-            self.orm_user = new.query(orm.User).filter(orm.User.id==id).first()
+            self.orm_user = change['new'].query(orm.User).filter(orm.User.id==id).first()
     
     orm_user = None
     spawner = None

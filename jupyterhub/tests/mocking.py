@@ -1,13 +1,14 @@
 """mock utilities for testing"""
 
 import sys
-from datetime import timedelta
 from tempfile import NamedTemporaryFile
 import threading
 
 from unittest import mock
 
 import requests
+
+from traitlets import default
 
 from tornado import gen
 from tornado.concurrent import Future
@@ -38,12 +39,10 @@ class MockSpawner(LocalProcessSpawner):
         # skip the setuid stuff
         return
     
-    def _set_user_changed(self, name, old, new):
-        pass
-    
     def user_env(self, env):
         return env
     
+    @default('cmd')
     def _cmd_default(self):
         return [sys.executable, '-m', 'jupyterhub.tests.mocksu']
 
