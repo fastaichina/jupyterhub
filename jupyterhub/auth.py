@@ -4,6 +4,7 @@
 # Distributed under the terms of the Modified BSD License.
 
 from grp import getgrnam
+import os
 import pipes
 import pwd
 import re
@@ -391,21 +392,43 @@ class PAMAuthenticator(LocalAuthenticator):
         """Open PAM session for user"""
         if not self.open_sessions:
             return
-        try:
-            pamela.open_session(user.name, service=self.service)
-        except pamela.PAMError as e:
-            self.log.warn("Failed to open PAM session for %s: %s", user.name, e)
-            self.log.warn("Disabling PAM sessions from now on.")
-            self.open_sessions = False
+        username = user.name
+        pw_user = pwd.getpwnam(username)
+        uid = pw_user.pw_uid
+        service = self.service
+        pid = os.fork()
+        if pid == 0:
+            os.setuid(uid) # Do we need to set the user id?
+            print("Opening PAM session")
+            try:
+                pamela.open_session(username, service=service)
+            except Exception:
+                self.log.exception("Failed to open PAM session")
+            print('ok')
+        else:
+            print(pid)
+            r = os.waitpid(pid, 0)
+            print('result', r)
     
     def post_spawn_stop(self, user, spawner):
         """Close PAM session for user"""
         if not self.open_sessions:
             return
-        try:
-            pamela.close_session(user.name, service=self.service)
-        except pamela.PAMError as e:
-            self.log.warn("Failed to close PAM session for %s: %s", user.name, e)
-            self.log.warn("Disabling PAM sessions from now on.")
-            self.open_sessions = False
+        username = user.name
+        pw_user = pwd.getpwnam(username)
+        uid = pw_user.pw_uid
+        service = self.service
+        pid = os.fork()
+        if pid == 0:
+            os.setuid(uid) # Do we need to set the user id?
+            print("Closing PAM session")
+            try:
+                pamela.close_session(username, service=service)
+            except Exception:
+                self.log.exception("Failed to close PAM session")
+            print('Closed')
+        else:
+            print(pid)
+            r = os.waitpid(pid, 0)
+            print('result', r)
     
