@@ -459,7 +459,14 @@ class JupyterHub(Application):
         The Hub should be able to resume from database state.
         """
     ).tag(config=True)
-
+    
+    ga_tracking_id = Unicode(
+        help="Google Analytics Tracking ID to use."
+    ).tag(config=True)
+    @default('ga_tracking_id')
+    def _ga_tracking_id(self):
+        return os.environ.get('GA_TRACKING_ID', '')
+    
     statsd_host = Unicode(
         help="Host to send statds metrics to"
     ).tag(config=True)
@@ -1057,6 +1064,7 @@ class JupyterHub(Application):
             subdomain_host=subdomain_host,
             domain=domain,
             statsd=self.statsd,
+            ga_tracking_id=self.ga_tracking_id,
         )
         # allow configured settings to have priority
         settings.update(self.tornado_settings)

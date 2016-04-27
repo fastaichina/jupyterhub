@@ -399,6 +399,7 @@ class BaseHandler(RequestHandler):
             base_url=self.hub.server.base_url,
             prefix=self.base_url,
             user=user,
+            ga_tracking_id=self.settings.get('ga_tracking_id', ''),
             login_url=self.settings['login_url'],
             login_service=self.authenticator.login_service,
             logout_url=self.settings['logout_url'],
