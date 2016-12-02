@@ -2,6 +2,7 @@
 language: python
 sudo: false
 python:
+  - nightly
   - 3.5
   - 3.4
   - 3.3
@@ -19,3 +20,5 @@ matrix:
   include:
     - python: 3.5
       env: JUPYTERHUB_TEST_SUBDOMAIN_HOST=http://127.0.0.1.xip.io:8000
+  allow_failures:
+    - python: nightly
