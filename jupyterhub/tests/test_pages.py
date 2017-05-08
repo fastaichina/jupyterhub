@@ -308,6 +308,19 @@ def test_logout(app):
     assert r.url == login_url
     assert r.cookies == {}
 
+def test_logout_page(app):
+    """Test that logout page renders with auto_login=True"""
+    name = 'wash'
+    cookies = app.login_user(name)
+    logout_url = public_host(app) + app.tornado_settings['logout_url']
+    app.authenticator.auto_login = True
+    r = requests.get(logout_url, cookies=cookies)
+    app.authenticator.auto_login = False
+    r.raise_for_status()
+    assert r.url == logout_url
+    assert 'logged out' in r.text
+    assert r.cookies == {}
+
 
 def test_login_no_whitelist_adds_user(app):
     auth = app.authenticator
